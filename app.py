@@ -3,6 +3,7 @@ import requests
 import io
 import docx
 from pypdf import PdfReader
+from wave_animation import display_wave_animation
 
 # 1. Page Configuration
 st.set_page_config(
@@ -156,13 +157,41 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-# 4. Main UI Header (Tailwind injected classes)
+# 4. Main UI Header (Tailwind injected classes + Custom Animations)
 st.markdown("""
+<style>
+@keyframes glow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0px); }
+}
+.animated-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 2.5rem;
+    background: linear-gradient(270deg, #fb923c, #ef4444, #f59e0b, #fb923c);
+    background-size: 200% 200%;
+    animation: glow 3s ease infinite;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.animated-subtitle {
+    color: #94a3b8;
+    font-size: 1.1rem;
+    font-family: 'Outfit', sans-serif;
+    animation: float 4s ease-in-out infinite;
+}
+</style>
 <div style="text-align: center; margin-bottom: 2rem;">
-    <h1 style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 2.5rem; background: linear-gradient(to right, #fb923c, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+    <h1 class="animated-title">
         Sunflower: Uganda Connect
     </h1>
-    <p style="color: #94a3b8; font-size: 1.1rem; font-family: 'Outfit', sans-serif;">The All-in-One Local Uganda AI Hub</p>
+    <p class="animated-subtitle">The All-in-One Local Uganda AI Hub</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -276,7 +305,8 @@ if translate_pressed:
         st.stop()
         
     if audio_input_data is not None:
-        with st.spinner("Transcribing audio..."):
+        display_wave_animation()
+        with st.spinner("Processing voice input (Gemini style)..."):
             stt_url = "https://api.sunbird.ai/tasks/stt"
             stt_headers = {"Authorization": f"Bearer {api_key}"}
             # Pass the file directly using its name and bytes
