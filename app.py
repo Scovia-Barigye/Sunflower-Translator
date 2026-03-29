@@ -3,6 +3,7 @@ import requests
 import io
 import docx
 from pypdf import PdfReader
+from wave_animation import display_wave_animation
 
 # 1. Page Configuration
 st.set_page_config(
@@ -156,13 +157,41 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-# 4. Main UI Header (Tailwind injected classes)
+# 4. Main UI Header (Tailwind injected classes + Custom Animations)
 st.markdown("""
+<style>
+@keyframes glow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0px); }
+}
+.animated-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 2.5rem;
+    background: linear-gradient(270deg, #fb923c, #ef4444, #f59e0b, #fb923c);
+    background-size: 200% 200%;
+    animation: glow 3s ease infinite;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.animated-subtitle {
+    color: #94a3b8;
+    font-size: 1.1rem;
+    font-family: 'Outfit', sans-serif;
+    animation: float 4s ease-in-out infinite;
+}
+</style>
 <div style="text-align: center; margin-bottom: 2rem;">
-    <h1 style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 2.5rem; background: linear-gradient(to right, #fb923c, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+    <h1 class="animated-title">
         Sunflower: Uganda Connect
     </h1>
-    <p style="color: #94a3b8; font-size: 1.1rem; font-family: 'Outfit', sans-serif;">The All-in-One Local Uganda AI Hub</p>
+    <p class="animated-subtitle">The All-in-One Local Uganda AI Hub</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -276,7 +305,8 @@ if translate_pressed:
         st.stop()
         
     if audio_input_data is not None:
-        with st.spinner("Transcribing audio..."):
+        display_wave_animation()
+        with st.spinner("Processing voice input (Gemini style)..."):
             stt_url = "https://api.sunbird.ai/tasks/stt"
             stt_headers = {"Authorization": f"Bearer {api_key}"}
             # Pass the file directly using its name and bytes
@@ -298,16 +328,21 @@ if translate_pressed:
     if not text_to_translate:
         st.warning("Please enter text, upload a document, or record audio to translate.")
     else:
+        # If the input text is insanely long (like a whole book), truncate it before sending it to Sunbird API
+        # By truncating it to ~4000 characters, we ensure that the resulting translation will definitely
+        # fall well under the 10,000 character TTS limit so audio will always play.
+        if len(text_to_translate) > 4000:
+            st.info("⚠️ Document is very long. Translating and playing audio for the first 4000 characters only.")
+            text_to_translate = text_to_translate[:4000]
+
         with st.spinner(f"Translating to {target_lang}..."):
-            url = "https://api.sunbird.ai/tasks/sunflower_inference"
+            url = "https://api.sunbird.ai/tasks/translate"
             headers = {"Authorization": f"Bearer {api_key}"}
             
             payload = {
-                "messages": [
-                    {"role": "system", "content": f"You are a professional translator. Translate the following English text into {target_lang}."},
-                    {"role": "user", "content": text_to_translate}
-                ],
-                "model_type": "qwen"
+                "source_language": "eng",
+                "target_language": LANG_CODES.get(target_lang, "lug"),
+                "text": text_to_translate
             }
 
             try:
@@ -318,8 +353,15 @@ if translate_pressed:
                 else:
                     result = response.json()
                     
-                    if 'content' in result:
-                        translation = result['content']
+                    # Depending on API format, it might output under 'output' > 'translated_text' 
+                    # or 'text' if it defaults to a simplified schema.
+                    translation = ""
+                    if 'output' in result and 'translated_text' in result['output']:
+                        translation = result['output']['translated_text']
+                    elif 'text' in result:
+                        translation = result['text']
+                    
+                    if translation:
                         
                         st.markdown("<h3 style='font-family: Outfit; color: #f8fafc; font-weight: 800;'><i class='fa-solid fa-sparkles' style='color:#ea580c; margin-right:8px;'></i> Results</h3>", unsafe_allow_html=True)
                         res_col1, res_col2 = st.columns(2)
@@ -329,44 +371,53 @@ if translate_pressed:
                             preview_text = text_to_translate[:500] + "..." if len(text_to_translate) > 500 else text_to_translate
                             st.markdown(f"<div class='original-box'>{preview_text}</div>", unsafe_allow_html=True)
                             
+                        # CREATE A PLACEHOLDER FOR THE TTS AUDIO SO WE CAN RENDER TEXT IMMEDIATELY
+                        audio_placeholder = st.empty()
+                        
                         with res_col2:
                             st.caption(f"Translated to ({target_lang}):")
                             st.markdown(f"<div class='translation-box'>{translation}</div>", unsafe_allow_html=True)
                             
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            
-                            with st.spinner("Generating audio..."):
-                                tts_url = "https://api.sunbird.ai/tasks/tts"
-                                tts_payload = {
-                                    "text": translation,
-                                    "language": LANG_CODES.get(target_lang, "lug")
-                                }
-                                try:
-                                    tts_resp = requests.post(tts_url, headers=headers, json=tts_payload)
-                                    if tts_resp.status_code == 200:
-                                        content_type = tts_resp.headers.get("Content-Type", "")
-                                        if "application/json" in content_type:
-                                            tts_json = tts_resp.json()
-                                            
-                                            # The audio_url is nested inside the 'output' dictionary
-                                            output_data = tts_json.get("output", {})
-                                            audio_data = output_data.get("audio_url") or tts_json.get("audio_url")
-                                            
-                                            if audio_data:
-                                                if isinstance(audio_data, str) and audio_data.startswith("http"):
-                                                    st.audio(audio_data)
+                        # NOW fetch the audio, the text has already rendered!
+                        with audio_placeholder.container():
+                            with res_col2:
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                
+                                if len(translation) > 9900:
+                                    st.warning("🔇 Audio playback skipped: The translated text is too long (over 10,000 characters) for the TTS engine. Please translate a shorter snippet if you wish to hear it out loud.")
+                                else:
+                                    with st.spinner("Generating audio..."):
+                                        tts_url = "https://api.sunbird.ai/tasks/tts"
+                                        tts_payload = {
+                                            "text": translation,
+                                            "language": LANG_CODES.get(target_lang, "lug")
+                                        }
+                                        try:
+                                            tts_resp = requests.post(tts_url, headers=headers, json=tts_payload)
+                                            if tts_resp.status_code == 200:
+                                                content_type = tts_resp.headers.get("Content-Type", "")
+                                                if "application/json" in content_type:
+                                                    tts_json = tts_resp.json()
+                                                    
+                                                    # The audio_url is nested inside the 'output' dictionary
+                                                    output_data = tts_json.get("output", {})
+                                                    audio_data = output_data.get("audio_url") or tts_json.get("audio_url")
+                                                    
+                                                    if audio_data:
+                                                        if isinstance(audio_data, str) and audio_data.startswith("http"):
+                                                            st.audio(audio_data)
+                                                        else:
+                                                            import base64
+                                                            st.audio(base64.b64decode(audio_data), format="audio/wav")
+                                                    else:
+                                                        st.warning("TTS API didn't return an expected audio format.")
                                                 else:
-                                                    import base64
-                                                    st.audio(base64.b64decode(audio_data), format="audio/wav")
+                                                    # Raw binary audio
+                                                    st.audio(tts_resp.content, format="audio/wav")
                                             else:
-                                                st.warning("TTS API didn't return an expected audio format.")
-                                        else:
-                                            # Raw binary audio
-                                            st.audio(tts_resp.content, format="audio/wav")
-                                    else:
-                                        st.warning(f"Audio Playback Error: ({tts_resp.status_code}) {tts_resp.text}")
-                                except Exception as e:
-                                    st.error(f"TTS Exception: {e}")
+                                                st.warning(f"Audio Playback Error: ({tts_resp.status_code}) {tts_resp.text}")
+                                        except Exception as e:
+                                            st.error(f"TTS Exception: {e}")
                             
                     else:
                         st.error("The API returned an unexpected response format:")

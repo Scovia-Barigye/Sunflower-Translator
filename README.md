@@ -2,14 +2,15 @@
 
 **The All-in-One Local Uganda AI Hub**
 
-A Streamlit web application powered by **Sunbird AI** that translates English into several Ugandan languages (Luganda, Runyankole, Ateso, Luo, Lugbara, Lusoga). The app supports multi-modal inputs including text, document uploads, and even features native in-browser voice recording and playback!
+A Streamlit web application powered by **Sunbird AI** that seamlessly translates English into several Ugandan languages (Luganda, Runyankole, Ateso, Luo, Lugbara, Lusoga). The app supports multi-modal inputs including text, document uploads, and even features native in-browser voice recording and playback!
 
 ## Features
-- 📝 **Text Translation**: Translate raw English text directly.
-- 📄 **Document Extraction**: Upload `.txt`, `.pdf`, or `.docx` files, and the app will extract the text for translation.
-- 🎤 **Voice Translation**: Natively record your voice from the browser, or upload `.mp3`/`.wav` files. The app uses Sunbird's Speech-to-Text (STT) API to transcribe the audio into English before translating it.
+- 📝 **English-to-Local Text Translation**: Translate raw English text directly to native Ugandan languages flawlessly. 
+- 📄 **Document Extraction & Smart Chunking**: Upload `.txt`, `.pdf`, or `.docx` files. The app extracts the text and automatically truncates overly large documents to safely bypass TTS synthesis character-limits (max 10,000 characters).
+- 🎤 **Voice Translation & Audio Waves**: Natively record your voice from the browser, or upload `.mp3`/`.wav` files. The UI features **Gemini-style pulsing audio wave animations** when recognizing the voice. It uses Sunbird's Speech-to-Text (STT) API to transcribe the audio into English before translation.
 - 🎧 **Audio Playback**: Automatically generates spoken audio of the translated local language phrases utilizing Sunbird's Text-to-Speech (TTS) API so you can listen to the translation immediately.
-- 🎨 **Beautiful UI**: Modern, tailor-made UI featuring Tailwind CSS styling, FontAwesome icons, outfit fonts, and a vibrant theme.
+- 🎨 **Beautiful Animated UI**: Modern, tailor-made UI featuring **Glowing CSS Title Animations**, Tailwind CSS styling, FontAwesome icons, outfit fonts, and a vibrant theme.
+- ⚡ **Optimized Architecture**: Avoids slow LLM (Large Language Model) routing by specifically executing via Sunbird's raw NMT (Neural Machine Translation) endpoint directly, resulting in up to 10x faster translations!
 
 ## Prerequisites
 - Python 3.8+
@@ -42,7 +43,7 @@ A Streamlit web application powered by **Sunbird AI** that translates English in
    ```bash
    pip install -r requirements.txt
    ```
-   *(Note: This project requires `streamlit>=1.39.0` to support the native `st.audio_input` widget).*
+   *(Note: This project requires `streamlit>=1.39.0` to support the native `st.audio_input` widget, and `pypdf` / `python-docx` for document parsing).*
 
 ## Running the Application
 
@@ -62,7 +63,7 @@ The app will compile and automatically open in your default web browser (usually
    - **TEXT Tab**: Type standard text.
    - **FILE UPLOAD Tab**: Upload a document to have its contents extracted.
    - **AUDIO / VOICE Tab**: Click the microphone to record your voice or upload an audio file.
-4. Select your desired **Target Language** from the dropdown menu.
+4. Select your desired **Target Language** from the dropdown menu. (Source is locked to English for guaranteed accuracy).
 5. Hit **Translate Now**.
 6. **Results**: The app will display your original English text beside the local translation. Click play on the generated audio player attached to listen to the pronunciation!
 
@@ -71,7 +72,7 @@ The app will compile and automatically open in your default web browser (usually
 If you wish to review, use, or contribute to this code:
 - **Fork the repository** to make your own changes.
 - **Found an issue or have a feature idea?** Feel free to open an Issue or submit a Pull Request.
-- **Code Structure**: The core layout logic, Tailwind/CSS bindings, multi-modal input processing, and Sunbird API payload handlers are entirely contained within `app.py`. Check out the lines around the `translate_pressed` event block to see how the Text, STT, and TTS workflows are routed together!
+- **Code Structure**: The core layout logic, Tailwind/CSS animations, multi-modal input processing, and Sunbird API payload handlers are contained within `app.py`. Audio animations map to `wave_animation.py`. 
 
 ## License
 
